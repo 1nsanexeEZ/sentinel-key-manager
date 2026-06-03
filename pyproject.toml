@@ -3,10 +3,22 @@ name = "sentinel-key-manager"
 version = "0.1.0"
 description = "Sentinel Key Manager"
 readme = "README.md"
+authors = ["1nsanexeEZ"]
 requires-python = ">=3.12"
 dependencies = [
-    "alembic>=1.18.4",
+    "alembic[asyncio]>=1.18.4",
+    "argon2-cffi>=25.1.0",
     "asyncpg>=0.31.0",
     "fastapi>=0.136.3",
+    "nats-py>=2.14.0",
+    "pydantic>=2.13.4",
+    "pydantic-settings>=2.14.1",
+    "python-jose[cryptography]>=3.5.0",
     "redis>=8.0.0",
+    "sqlalchemy[asyncio]>=2.0.50",
+    "uvicorn>=0.48.0",
 ]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
