@@ -3,6 +3,7 @@ name = "sentinel-key-manager"
 version = "0.1.0"
 description = "Sentinel Key Manager"
 readme = "README.md"
+authors = ["1nsanexeEZ"]
 requires-python = ">=3.12"
 dependencies = [
     "alembic[asyncio]>=1.18.4",
