@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     redis_port: int = 6379
 
     secret_key: str = "change_me"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 15
 
     @computed_field  # type: ignore[prop-decorator]
     @property
