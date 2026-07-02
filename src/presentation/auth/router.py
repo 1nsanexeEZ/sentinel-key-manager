@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 
 from src.application.auth.exceptions import InvalidCredentials, UserAlreadyExists
 from src.application.auth.service import AuthService
-from src.presentation.auth.dependencies import get_auth_service
+from src.infrastructure.models.user import User
+from src.presentation.auth.dependencies import get_auth_service, get_current_user
 from src.presentation.auth.schemas import (
     LoginRequest,
     RegisterRequest,
@@ -45,3 +46,8 @@ async def login(
             detail="invalid username or password",
         )
     return TokenResponse(access_token=token)
+
+
+@router.get("/me", response_model=UserResponse)
+async def me(current_user: User = Depends(get_current_user)) -> UserResponse:
+    return UserResponse.model_validate(current_user)
