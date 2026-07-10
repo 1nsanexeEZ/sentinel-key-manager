@@ -35,6 +35,9 @@ class Settings(BaseSettings):
     # allowed CORS origins (empty = same-origin only)
     cors_origins: list[str] = []
 
+    # number of Shamir shares required to unseal
+    shamir_threshold: int = 3
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def database_url(self) -> PostgresDsn:

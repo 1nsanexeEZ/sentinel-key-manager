@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import base64
+
 from src.application.audit.service import AuditService
 from src.application.keys.service import KeyRotationService
 from src.core.crypto.envelope import unwrap_kek
 from src.infrastructure.crypto.keyring import KeyringError, decode_root_key
 from src.infrastructure.crypto.seal import seal_state
+from src.infrastructure.crypto.shamir_unseal import unseal_coordinator
 from src.infrastructure.database import get_session
 from src.infrastructure.models.user import User
 from src.infrastructure.repositories.key_repository import KeyRepository
@@ -15,7 +18,9 @@ from src.presentation.sys.schemas import (
     AuditVerifyResponse,
     RotateResponse,
     SealStatusResponse,
+    UnsealProgressResponse,
     UnsealRequest,
+    UnsealShareRequest,
 )
 
 ADMIN_ROLE = "admin"
@@ -60,9 +65,69 @@ async def unseal(
     return SealStatusResponse(sealed=False)
 
 
+async def _root_key_matches_kek(session: AsyncSession, root_key: bytes) -> bool:
+    active = await KeyRepository(session).get_active()
+    if active is None:
+        return True
+    try:
+        unwrap_kek(root_key, active.encrypted_kek)
+    except Exception:
+        return False
+    return True
+
+
+@router.post(
+    "/unseal-share",
+    response_model=UnsealProgressResponse,
+    dependencies=[Depends(rate_limit("unseal", limit=5, window=60))],
+)
+async def unseal_share(
+    payload: UnsealShareRequest,
+    session: AsyncSession = Depends(get_session),
+) -> UnsealProgressResponse:
+    try:
+        share = base64.b64decode(payload.share)
+    except (ValueError, TypeError):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="share is not valid base64",
+        )
+
+    try:
+        root_key = unseal_coordinator.submit(share)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        )
+
+    if root_key is None:
+        return UnsealProgressResponse(
+            sealed=True,
+            provided=unseal_coordinator.provided,
+            threshold=unseal_coordinator.threshold,
+        )
+
+    if not await _root_key_matches_kek(session, root_key):
+        unseal_coordinator.reset()
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="reconstructed key is invalid",
+        )
+
+    seal_state.unseal(root_key)
+    unseal_coordinator.reset()
+    return UnsealProgressResponse(
+        sealed=False,
+        provided=0,
+        threshold=unseal_coordinator.threshold,
+    )
+
+
 @router.post("/seal", response_model=SealStatusResponse)
 async def seal(_: User = Depends(get_current_user)) -> SealStatusResponse:
     seal_state.seal()
+    unseal_coordinator.reset()
     return SealStatusResponse(sealed=True)
 
 
