@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.audit.service import AuditService
 from src.application.keys.service import KeyRotationService
 from src.core.crypto.envelope import unwrap_kek
 from src.infrastructure.crypto.keyring import KeyringError, decode_root_key
@@ -10,6 +11,7 @@ from src.infrastructure.models.user import User
 from src.infrastructure.repositories.key_repository import KeyRepository
 from src.presentation.auth.dependencies import get_current_user
 from src.presentation.sys.schemas import (
+    AuditVerifyResponse,
     RotateResponse,
     SealStatusResponse,
     UnsealRequest,
@@ -77,3 +79,21 @@ async def rotate_key(
     service = KeyRotationService(KeyRepository(session), seal_state.root_key())
     new_version = await service.rotate()
     return RotateResponse(active_version=new_version)
+
+
+@router.get("/audit/verify", response_model=AuditVerifyResponse)
+async def verify_audit(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> AuditVerifyResponse:
+    if user.role != ADMIN_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin role required",
+        )
+    check = await AuditService(session).verify()
+    return AuditVerifyResponse(
+        valid=check.valid,
+        checked=check.checked,
+        broken_at=check.broken_at,
+    )
