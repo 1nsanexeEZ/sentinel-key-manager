@@ -4,6 +4,7 @@ from typing import Any
 from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.audit.service import AuditService
 from src.application.secrets.service import SecretService
 from src.domain.rbac import Capability, is_allowed
 from src.infrastructure.database import get_session
@@ -21,6 +22,16 @@ def get_secret_service(
     return SecretService(SecretRepository(session))
 
 
+def get_audit_service(
+    session: AsyncSession = Depends(get_session),
+) -> AuditService:
+    return AuditService(session)
+
+
+def client_ip(request: Request) -> str | None:
+    return request.client.host if request.client else None
+
+
 def require(
     capability: Capability,
 ) -> Callable[..., Coroutine[Any, Any, User]]:
@@ -34,6 +45,13 @@ def require(
         path = request.path_params.get("path", "")
         policies = await PolicyRepository(session).list_for_role(user.role)
         if not is_allowed(policies, path, capability):
+            await AuditService(session).record(
+                action=capability.value,
+                result="denied",
+                actor_id=user.id,
+                resource=path,
+                client_ip=client_ip(request),
+            )
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="not permitted for this path",
