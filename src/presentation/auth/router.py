@@ -16,6 +16,7 @@ from src.presentation.auth.schemas import (
     TokenResponse,
     UserResponse,
 )
+from src.presentation.rate_limit import rate_limit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -39,7 +40,11 @@ async def register(
     return UserResponse.model_validate(user)
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login",
+    response_model=TokenResponse,
+    dependencies=[Depends(rate_limit("login", limit=5, window=60))],
+)
 async def login(
     payload: LoginRequest,
     service: AuthService = Depends(get_auth_service),
