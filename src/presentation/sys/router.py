@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.application.keys.service import KeyRotationService
 from src.core.crypto.envelope import unwrap_kek
 from src.infrastructure.crypto.keyring import KeyringError, decode_root_key
 from src.infrastructure.crypto.seal import seal_state
@@ -8,7 +9,13 @@ from src.infrastructure.database import get_session
 from src.infrastructure.models.user import User
 from src.infrastructure.repositories.key_repository import KeyRepository
 from src.presentation.auth.dependencies import get_current_user
-from src.presentation.sys.schemas import SealStatusResponse, UnsealRequest
+from src.presentation.sys.schemas import (
+    RotateResponse,
+    SealStatusResponse,
+    UnsealRequest,
+)
+
+ADMIN_ROLE = "admin"
 
 router = APIRouter(prefix="/sys", tags=["sys"])
 
@@ -50,3 +57,23 @@ async def unseal(
 async def seal(_: User = Depends(get_current_user)) -> SealStatusResponse:
     seal_state.seal()
     return SealStatusResponse(sealed=True)
+
+
+@router.post("/rotate-key", response_model=RotateResponse)
+async def rotate_key(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> RotateResponse:
+    if user.role != ADMIN_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin role required",
+        )
+    if seal_state.sealed:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="service is sealed",
+        )
+    service = KeyRotationService(KeyRepository(session), seal_state.root_key())
+    new_version = await service.rotate()
+    return RotateResponse(active_version=new_version)
