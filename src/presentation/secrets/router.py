@@ -54,12 +54,13 @@ async def set_secret(
 async def get_secret(
     path: str,
     request: Request,
+    version: int | None = None,
     service: SecretService = Depends(get_secret_service),
     audit: AuditService = Depends(get_audit_service),
     user: User = Depends(require(Capability.READ)),
 ) -> SecretResponse:
     try:
-        value = await service.get_secret(path)
+        value = await service.get_secret(path, version)
     except SecretNotFound:
         await audit.record(
             action="read",
@@ -112,3 +113,29 @@ async def delete_secret(
         client_ip=client_ip(request),
     )
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{path:path}", response_model=SecretResponse)
+async def rollback_secret(
+    path: str,
+    request: Request,
+    to: int,
+    service: SecretService = Depends(get_secret_service),
+    audit: AuditService = Depends(get_audit_service),
+    user: User = Depends(require(Capability.WRITE)),
+) -> SecretResponse:
+    try:
+        value = await service.rollback(path, to)
+    except SecretNotFound:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="secret or version not found",
+        )
+    await audit.record(
+        action="rollback",
+        result="success",
+        actor_id=user.id,
+        resource=f"{path}@{to}",
+        client_ip=client_ip(request),
+    )
+    return SecretResponse(path=path, value=value)
