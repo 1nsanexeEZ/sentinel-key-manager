@@ -14,6 +14,9 @@ from src.infrastructure.models.user import User
 from src.infrastructure.repositories.key_repository import KeyRepository
 from src.infrastructure.repositories.policy_repository import PolicyRepository
 from src.infrastructure.repositories.secret_repository import SecretRepository
+from src.infrastructure.repositories.secret_version_repository import (
+    SecretVersionRepository,
+)
 from src.presentation.auth.dependencies import get_current_user
 
 ADMIN_ROLE = "admin"
@@ -28,7 +31,11 @@ def get_secret_service(
             detail="service is sealed",
         )
     keyring = Keyring(KeyRepository(session), seal_state.root_key())
-    return SecretService(SecretRepository(session), keyring)
+    return SecretService(
+        SecretRepository(session),
+        SecretVersionRepository(session),
+        keyring,
+    )
 
 
 def get_audit_service(
