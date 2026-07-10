@@ -5,7 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.auth.service import AuthService
 from src.core.security.tokens import TokenError, decode_token
 from src.infrastructure.database import get_session
+from src.infrastructure.leases import LeaseStore
 from src.infrastructure.models.user import User
+from src.infrastructure.redis import get_redis
 from src.infrastructure.repositories.user_repository import UserRepository
 
 _bearer = HTTPBearer(auto_error=True)
@@ -17,10 +19,15 @@ def get_user_repository(
     return UserRepository(session)
 
 
+def get_lease_store() -> LeaseStore:
+    return LeaseStore(get_redis())
+
+
 def get_auth_service(
     users: UserRepository = Depends(get_user_repository),
+    leases: LeaseStore = Depends(get_lease_store),
 ) -> AuthService:
-    return AuthService(users)
+    return AuthService(users, leases)
 
 
 async def get_current_user(
