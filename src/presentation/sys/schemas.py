@@ -11,3 +11,9 @@ class SealStatusResponse(BaseModel):
 
 class RotateResponse(BaseModel):
     active_version: int
+
+
+class AuditVerifyResponse(BaseModel):
+    valid: bool
+    checked: int
+    broken_at: int | None

@@ -26,3 +26,6 @@ class AuditRecord(Base):
     resource: Mapped[str | None] = mapped_column(String(255), nullable=True)
     result: Mapped[str] = mapped_column(String(16), nullable=False)
     client_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # tamper-evident chain: hash = SHA256(prev_hash + canonical(event))
+    prev_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    record_hash: Mapped[str] = mapped_column(String(64), nullable=False, default="")
