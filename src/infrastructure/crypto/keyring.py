@@ -1,3 +1,6 @@
+import base64
+
+from src.core.config import get_settings
 from src.core.crypto.envelope import (
     EnvelopeCipher,
     generate_kek,
@@ -9,6 +12,19 @@ from src.infrastructure.repositories.key_repository import KeyRepository
 
 class KeyringError(Exception):
     pass
+
+
+def load_root_key() -> bytes:
+    raw = get_settings().master_key
+    if not raw:
+        raise KeyringError("master key is not configured")
+    try:
+        key = base64.b64decode(raw)
+    except (ValueError, TypeError) as exc:
+        raise KeyringError("master key is not valid base64") from exc
+    if len(key) != 32:
+        raise KeyringError("master key must decode to 32 bytes")
+    return key
 
 
 class Keyring:

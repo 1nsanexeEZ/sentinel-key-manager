@@ -26,15 +26,25 @@ class SecretRepository:
     async def upsert(
         self,
         path: str,
-        value: str,
+        ciphertext: bytes,
+        encrypted_dek: bytes,
+        key_version: int,
         created_by: uuid.UUID | None,
     ) -> Secret:
         secret = await self.get_by_path(path)
         if secret is None:
-            secret = Secret(path=path, value=value, created_by=created_by)
+            secret = Secret(
+                path=path,
+                ciphertext=ciphertext,
+                encrypted_dek=encrypted_dek,
+                key_version=key_version,
+                created_by=created_by,
+            )
             self._session.add(secret)
         else:
-            secret.value = value
+            secret.ciphertext = ciphertext
+            secret.encrypted_dek = encrypted_dek
+            secret.key_version = key_version
         await self._session.commit()
         await self._session.refresh(secret)
         return secret

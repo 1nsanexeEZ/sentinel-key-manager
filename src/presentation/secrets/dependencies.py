@@ -7,8 +7,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.audit.service import AuditService
 from src.application.secrets.service import SecretService
 from src.domain.rbac import Capability, is_allowed
+from src.infrastructure.crypto.keyring import Keyring, load_root_key
 from src.infrastructure.database import get_session
 from src.infrastructure.models.user import User
+from src.infrastructure.repositories.key_repository import KeyRepository
 from src.infrastructure.repositories.policy_repository import PolicyRepository
 from src.infrastructure.repositories.secret_repository import SecretRepository
 from src.presentation.auth.dependencies import get_current_user
@@ -19,7 +21,8 @@ ADMIN_ROLE = "admin"
 def get_secret_service(
     session: AsyncSession = Depends(get_session),
 ) -> SecretService:
-    return SecretService(SecretRepository(session))
+    keyring = Keyring(KeyRepository(session), load_root_key())
+    return SecretService(SecretRepository(session), keyring)
 
 
 def get_audit_service(
