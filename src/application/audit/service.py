@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.domain.audit_chain import AuditEvent, ChainCheck, compute_hash, verify_chain
 from src.infrastructure.models.audit import AuditRecord
+from src.infrastructure.nats import publish_audit_event
 
 
 class AuditService:
@@ -44,6 +45,16 @@ class AuditService:
             )
         )
         await self._session.commit()
+        await publish_audit_event(
+            {
+                "actor_id": str(actor_id) if actor_id else None,
+                "action": action,
+                "resource": resource,
+                "result": result,
+                "client_ip": client_ip,
+                "record_hash": record_hash,
+            }
+        )
 
     async def _last_hash(self) -> str:
         result = await self._session.execute(
