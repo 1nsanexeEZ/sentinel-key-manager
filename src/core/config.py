@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     # dev convenience: unseal automatically from master_key on startup
     auto_unseal: bool = False
 
+    # allowed CORS origins (empty = same-origin only)
+    cors_origins: list[str] = []
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def database_url(self) -> PostgresDsn:
