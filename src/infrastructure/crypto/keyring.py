@@ -14,17 +14,20 @@ class KeyringError(Exception):
     pass
 
 
-def load_root_key() -> bytes:
-    raw = get_settings().master_key
+def decode_root_key(raw: str) -> bytes:
     if not raw:
-        raise KeyringError("master key is not configured")
+        raise KeyringError("root key is empty")
     try:
         key = base64.b64decode(raw)
     except (ValueError, TypeError) as exc:
-        raise KeyringError("master key is not valid base64") from exc
+        raise KeyringError("root key is not valid base64") from exc
     if len(key) != 32:
-        raise KeyringError("master key must decode to 32 bytes")
+        raise KeyringError("root key must decode to 32 bytes")
     return key
+
+
+def load_root_key() -> bytes:
+    return decode_root_key(get_settings().master_key)
 
 
 class Keyring:
