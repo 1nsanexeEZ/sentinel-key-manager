@@ -39,7 +39,7 @@ async def set_secret(
     audit: AuditService = Depends(get_audit_service),
     user: User = Depends(require(Capability.WRITE)),
 ) -> SecretResponse:
-    secret = await service.set_secret(path, payload.value, user.id)
+    await service.set_secret(path, payload.value, user.id)
     await audit.record(
         action="write",
         result="success",
@@ -47,7 +47,7 @@ async def set_secret(
         resource=path,
         client_ip=client_ip(request),
     )
-    return SecretResponse(path=secret.path, value=secret.value)
+    return SecretResponse(path=path, value=payload.value)
 
 
 @router.get("/{path:path}", response_model=SecretResponse)
@@ -59,7 +59,7 @@ async def get_secret(
     user: User = Depends(require(Capability.READ)),
 ) -> SecretResponse:
     try:
-        secret = await service.get_secret(path)
+        value = await service.get_secret(path)
     except SecretNotFound:
         await audit.record(
             action="read",
@@ -79,7 +79,7 @@ async def get_secret(
         resource=path,
         client_ip=client_ip(request),
     )
-    return SecretResponse(path=secret.path, value=secret.value)
+    return SecretResponse(path=path, value=value)
 
 
 @router.delete("/{path:path}", status_code=status.HTTP_204_NO_CONTENT)

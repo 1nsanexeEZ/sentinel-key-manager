@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -22,8 +22,10 @@ class Secret(Base):
         index=True,
         nullable=False,
     )
-    # plaintext for now; replaced by envelope-encrypted columns in the crypto epic
-    value: Mapped[str] = mapped_column(Text, nullable=False)
+    # envelope-encrypted: value under a per-secret DEK, DEK under the versioned KEK
+    ciphertext: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    encrypted_dek: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    key_version: Mapped[int] = mapped_column(Integer, nullable=False)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
