@@ -29,6 +29,8 @@ class Settings(BaseSettings):
 
     # base64-encoded 32-byte root key used to unseal the keyring
     master_key: str = ""
+    # dev convenience: unseal automatically from master_key on startup
+    auto_unseal: bool = False
 
     @computed_field  # type: ignore[prop-decorator]
     @property

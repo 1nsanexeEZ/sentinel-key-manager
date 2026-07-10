@@ -7,7 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.application.audit.service import AuditService
 from src.application.secrets.service import SecretService
 from src.domain.rbac import Capability, is_allowed
-from src.infrastructure.crypto.keyring import Keyring, load_root_key
+from src.infrastructure.crypto.keyring import Keyring
+from src.infrastructure.crypto.seal import seal_state
 from src.infrastructure.database import get_session
 from src.infrastructure.models.user import User
 from src.infrastructure.repositories.key_repository import KeyRepository
@@ -21,7 +22,12 @@ ADMIN_ROLE = "admin"
 def get_secret_service(
     session: AsyncSession = Depends(get_session),
 ) -> SecretService:
-    keyring = Keyring(KeyRepository(session), load_root_key())
+    if seal_state.sealed:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="service is sealed",
+        )
+    keyring = Keyring(KeyRepository(session), seal_state.root_key())
     return SecretService(SecretRepository(session), keyring)
 
 
