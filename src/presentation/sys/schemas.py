@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 
@@ -27,3 +29,9 @@ class UnsealProgressResponse(BaseModel):
     sealed: bool
     provided: int
     threshold: int
+
+
+class DynamicCredentialResponse(BaseModel):
+    username: str
+    password: str
+    expires_at: datetime

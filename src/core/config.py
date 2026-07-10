@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     # number of Shamir shares required to unseal
     shamir_threshold: int = 3
 
+    # privileged DSN for issuing dynamic DB roles (empty = feature disabled)
+    dynamic_db_dsn: str = ""
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def database_url(self) -> PostgresDsn:
