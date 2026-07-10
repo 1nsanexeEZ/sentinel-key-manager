@@ -1,8 +1,10 @@
 from fastapi import Depends, FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.config import get_settings
+from src.presentation.security import SecurityHeadersMiddleware
 from src.infrastructure.crypto.keyring import KeyringError, load_root_key
 from src.infrastructure.crypto.seal import seal_state
 from src.infrastructure.database import get_session
@@ -13,6 +15,15 @@ from src.presentation.sys.router import router as sys_router
 settings = get_settings()
 
 app = FastAPI(title=settings.app_name, debug=settings.debug)
+
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 app.include_router(auth_router)
 app.include_router(secrets_router)
