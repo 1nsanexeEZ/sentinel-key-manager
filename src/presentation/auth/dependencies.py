@@ -33,6 +33,7 @@ def get_auth_service(
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
     users: UserRepository = Depends(get_user_repository),
+    leases: LeaseStore = Depends(get_lease_store),
 ) -> User:
     unauthorized = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -45,10 +46,35 @@ async def get_current_user(
         raise unauthorized
 
     user_id = claims.get("sub")
-    if user_id is None:
+    jti = claims.get("jti")
+    if user_id is None or jti is None:
+        raise unauthorized
+
+    # a revoked (or expired-and-swept) token has no lease
+    if not await leases.exists(jti):
         raise unauthorized
 
     user = await users.get_by_id(user_id)
     if user is None or not user.is_active:
         raise unauthorized
     return user
+
+
+async def get_current_jti(
+    credentials: HTTPAuthorizationCredentials = Depends(_bearer),
+) -> str:
+    try:
+        claims = decode_token(credentials.credentials)
+    except TokenError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid or expired token",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    jti = claims.get("jti")
+    if not jti:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="invalid or expired token",
+        )
+    return jti
