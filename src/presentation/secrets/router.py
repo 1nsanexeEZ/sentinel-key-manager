@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from src.application.secrets.exceptions import SecretNotFound
 from src.application.secrets.service import SecretService
+from src.domain.rbac import Capability
 from src.infrastructure.models.user import User
 from src.presentation.auth.dependencies import get_current_user
-from src.presentation.secrets.dependencies import get_secret_service
+from src.presentation.secrets.dependencies import get_secret_service, require
 from src.presentation.secrets.schemas import (
     SecretListResponse,
     SecretResponse,
@@ -28,7 +29,7 @@ async def set_secret(
     path: str,
     payload: SecretWriteRequest,
     service: SecretService = Depends(get_secret_service),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require(Capability.WRITE)),
 ) -> SecretResponse:
     secret = await service.set_secret(path, payload.value, user.id)
     return SecretResponse(path=secret.path, value=secret.value)
@@ -38,7 +39,7 @@ async def set_secret(
 async def get_secret(
     path: str,
     service: SecretService = Depends(get_secret_service),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require(Capability.READ)),
 ) -> SecretResponse:
     try:
         secret = await service.get_secret(path)
@@ -54,7 +55,7 @@ async def get_secret(
 async def delete_secret(
     path: str,
     service: SecretService = Depends(get_secret_service),
-    _: User = Depends(get_current_user),
+    _: User = Depends(require(Capability.DELETE)),
 ) -> Response:
     try:
         await service.delete_secret(path)
