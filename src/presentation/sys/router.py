@@ -10,6 +10,7 @@ from src.infrastructure.database import get_session
 from src.infrastructure.models.user import User
 from src.infrastructure.repositories.key_repository import KeyRepository
 from src.presentation.auth.dependencies import get_current_user
+from src.presentation.rate_limit import rate_limit
 from src.presentation.sys.schemas import (
     AuditVerifyResponse,
     RotateResponse,
@@ -27,7 +28,11 @@ async def seal_status() -> SealStatusResponse:
     return SealStatusResponse(sealed=seal_state.sealed)
 
 
-@router.post("/unseal", response_model=SealStatusResponse)
+@router.post(
+    "/unseal",
+    response_model=SealStatusResponse,
+    dependencies=[Depends(rate_limit("unseal", limit=5, window=60))],
+)
 async def unseal(
     payload: UnsealRequest,
     session: AsyncSession = Depends(get_session),
