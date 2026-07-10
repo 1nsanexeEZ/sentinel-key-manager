@@ -1,4 +1,6 @@
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 from jose import JWTError, jwt
 
@@ -11,16 +13,27 @@ class TokenError(Exception):
     """Raised when a token is invalid, expired or tampered with."""
 
 
-def create_access_token(subject: str) -> str:
+@dataclass(frozen=True)
+class IssuedToken:
+    token: str
+    jti: str
+    expires_in: int  # seconds
+
+
+def create_access_token(subject: str) -> IssuedToken:
     now = datetime.now(timezone.utc)
-    expire = now + timedelta(minutes=settings.access_token_expire_minutes)
+    ttl = settings.access_token_expire_minutes * 60
+    expire = now + timedelta(seconds=ttl)
+    jti = uuid4().hex
     payload = {
         "sub": subject,
+        "jti": jti,
         "iat": int(now.timestamp()),
         "exp": int(expire.timestamp()),
         "type": "access",
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+    token = jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
+    return IssuedToken(token=token, jti=jti, expires_in=ttl)
 
 
 def decode_token(token: str) -> dict:
