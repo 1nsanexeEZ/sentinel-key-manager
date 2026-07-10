@@ -7,3 +7,7 @@ class UnsealRequest(BaseModel):
 
 class SealStatusResponse(BaseModel):
     sealed: bool
+
+
+class RotateResponse(BaseModel):
+    active_version: int
