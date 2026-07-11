@@ -4,18 +4,25 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import base64
 
 from src.application.audit.service import AuditService
+from src.application.dynamic_secrets.service import DynamicSecretService
 from src.application.keys.service import KeyRotationService
+from src.core.config import get_settings
 from src.core.crypto.envelope import unwrap_kek
 from src.infrastructure.crypto.keyring import KeyringError, decode_root_key
 from src.infrastructure.crypto.seal import seal_state
 from src.infrastructure.crypto.shamir_unseal import unseal_coordinator
 from src.infrastructure.database import get_session
+from src.infrastructure.dynamic_db import DynamicDbProvider
 from src.infrastructure.models.user import User
+from src.infrastructure.repositories.dynamic_credential_repository import (
+    DynamicCredentialRepository,
+)
 from src.infrastructure.repositories.key_repository import KeyRepository
 from src.presentation.auth.dependencies import get_current_user
 from src.presentation.rate_limit import rate_limit
 from src.presentation.sys.schemas import (
     AuditVerifyResponse,
+    DynamicCredentialResponse,
     RotateResponse,
     SealStatusResponse,
     UnsealProgressResponse,
@@ -166,4 +173,33 @@ async def verify_audit(
         valid=check.valid,
         checked=check.checked,
         broken_at=check.broken_at,
+    )
+
+
+@router.post("/db-creds", response_model=DynamicCredentialResponse)
+async def issue_db_creds(
+    ttl: int = 3600,
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> DynamicCredentialResponse:
+    if user.role != ADMIN_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin role required",
+        )
+    dsn = get_settings().dynamic_db_dsn
+    if not dsn:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="dynamic db secrets are not configured",
+        )
+    service = DynamicSecretService(
+        DynamicDbProvider(dsn),
+        DynamicCredentialRepository(session),
+    )
+    credential = await service.issue(ttl)
+    return DynamicCredentialResponse(
+        username=credential.username,
+        password=credential.password,
+        expires_at=credential.expires_at,
     )
