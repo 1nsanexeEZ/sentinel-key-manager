@@ -17,3 +17,13 @@ class AuditVerifyResponse(BaseModel):
     valid: bool
     checked: int
     broken_at: int | None
+
+
+class UnsealShareRequest(BaseModel):
+    share: str  # base64-encoded Shamir share
+
+
+class UnsealProgressResponse(BaseModel):
+    sealed: bool
+    provided: int
+    threshold: int
