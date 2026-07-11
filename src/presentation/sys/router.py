@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import base64
 
+from src.application.audit.anomaly_service import AnomalyService
 from src.application.audit.service import AuditService
 from src.application.dynamic_secrets.service import DynamicSecretService
 from src.application.keys.service import KeyRotationService
@@ -21,6 +22,8 @@ from src.infrastructure.repositories.key_repository import KeyRepository
 from src.presentation.auth.dependencies import get_current_user
 from src.presentation.rate_limit import rate_limit
 from src.presentation.sys.schemas import (
+    AlertItem,
+    AlertsResponse,
     AuditVerifyResponse,
     DynamicCredentialResponse,
     RotateResponse,
@@ -202,4 +205,22 @@ async def issue_db_creds(
         username=credential.username,
         password=credential.password,
         expires_at=credential.expires_at,
+    )
+
+
+@router.get("/alerts", response_model=AlertsResponse)
+async def alerts(
+    session: AsyncSession = Depends(get_session),
+    user: User = Depends(get_current_user),
+) -> AlertsResponse:
+    if user.role != ADMIN_ROLE:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="admin role required",
+        )
+    found = await AnomalyService(session).scan()
+    return AlertsResponse(
+        alerts=[
+            AlertItem(kind=a.kind, actor_id=a.actor_id, count=a.count) for a in found
+        ]
     )

@@ -35,3 +35,13 @@ class DynamicCredentialResponse(BaseModel):
     username: str
     password: str
     expires_at: datetime
+
+
+class AlertItem(BaseModel):
+    kind: str
+    actor_id: str | None
+    count: int
+
+
+class AlertsResponse(BaseModel):
+    alerts: list[AlertItem]
