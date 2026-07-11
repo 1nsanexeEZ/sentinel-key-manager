@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     # privileged DSN for issuing dynamic DB roles (empty = feature disabled)
     dynamic_db_dsn: str = ""
 
+    # publish audit events to NATS (best-effort)
+    nats_enabled: bool = False
+    nats_url: str = "nats://localhost:4222"
+    audit_nats_subject: str = "audit.events"
+
     @computed_field  # type: ignore[prop-decorator]
     @property
     def database_url(self) -> PostgresDsn:
